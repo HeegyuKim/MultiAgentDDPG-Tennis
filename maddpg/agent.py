@@ -26,6 +26,7 @@ class MADDPGAgent:
         batch_size=512,
         gamma=0.99,
         tau=1e-3,
+        load_checkpoint=False
     ):
         self.index = index
         self.device = device
@@ -60,6 +61,9 @@ class MADDPGAgent:
         self.memory = ReplayBuffer(
             action_size, int(buffer_size), batch_size, random_seed, device
         )
+
+        if load_checkpoint:
+            self.load()
 
     def step(self, state, action, opponent_action, reward, next_state, done):
         self.memory.add(state, action, opponent_action, reward, next_state, done)
@@ -152,3 +156,14 @@ class MADDPGAgent:
             self.critic_local.state_dict(),
             f"models/agent-{self.index}/{filename}_critic.pth",
         )
+    
+    def load(self, filename="checkpoint"):
+        actor = torch.load(f"models/agent-{self.index}/{filename}_actor.pth")
+        self.actor_local.load_state_dict(actor)
+        self.actor_target.load_state_dict(actor)
+
+        critic = torch.load(f"models/agent-{self.index}/{filename}_critic.pth")
+        self.critic_local.load_state_dict(critic)
+        self.critic_target.load_state_dict(critic)
+        
+        self.actor_opponent.load_state_dict(torch.load(f"models/agent-{self.index}/{filename}_actor_opponent.pth"))
