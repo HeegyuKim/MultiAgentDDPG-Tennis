@@ -15,17 +15,7 @@ class DDPGAgent:
         index,
         random_seed,
         device,
-<<<<<<< HEAD
         params
-=======
-        actor_lr=1e-3,
-        critic_lr=1e-3,
-        buffer_size=10000,
-        batch_size=512,
-        gamma=0.99,
-        tau=1e-3,
-        load_checkpoint=False
->>>>>>> master
     ):
         self.index = index
         self.state_size = params['state_size']
@@ -61,8 +51,11 @@ class DDPGAgent:
         self.noise = OUNoise(self.action_size, random_seed)
         # experience replay
         self.memory = ReplayBuffer(
-            self.action_size, params['buffer_size'], params['batch_size'], random_seed, device
-        )
+            params['batch_size'],
+            params['buffer_size'],
+            random_seed,
+            device
+            )
 
     def reset(self):
         self.noise.reset()
@@ -72,8 +65,7 @@ class DDPGAgent:
         state: tensor [state_size] or [batch_size, state_size]
         return: tensor [1 or batch_size, state_size]
         """
-        if state.dim() == 1:
-            state = state.unsqueeze(0)
+        state = torch.from_numpy(state).float().to(self.device)
 
         self.actor_local.eval()
         with torch.no_grad():
@@ -92,25 +84,25 @@ class DDPGAgent:
         """
         return self.actor_target(state)
         
-    def learn(self, experiences, agents):
-        if len(self.memory) < self.batch_size:
+    def learn(self, opponent):
+        if not self.memory.ready():
             return
-        
-        states, full_states, full_actions, rewards, next_states, full_next_states, dones = experiences
+        experiences = self.memory.sample()
+        states, states_opponent, actions, actions_opponent, rewards, next_states, next_states_opponent, dones = experiences
+
 
         # update critic
-        full_next_actions = [
-            self.actor_target(full_next_states[i]) if i == self.index
-            else agent.actor_target(full_next_states[i]).detach()
-            for i, agent in enumerate(agents)
-            ]
-        
-        full_next_states = full_next_states.view(-1, self.num_agents * self.state_size)
-        full_next_actions = full_next_actions.view(-1, self.num_agents * self.action_size)
+        next_actions = self.actor_target(next_states)
+        next_actions_opponent = opponent.actor_target(next_states_opponent)
 
-        Q_target_next = self.critic_target(full_next_states, full_next_actions)
+        Q_target_next = self.critic_target(
+            next_states,
+            next_states_opponent,
+            next_actions,
+            next_actions_opponent
+        )
         Q_target = rewards + self.gamma * Q_target_next * (1.0 - dones)
-        Q_expected = self.critic_local(full_states, full_actions)
+        Q_expected = self.critic_local(states, states_opponent, actions, actions_opponent)
 
         Q_loss= F.mse_loss(Q_target, Q_expected)
         self.critic_optimizer.zero_grad()
@@ -120,11 +112,12 @@ class DDPGAgent:
 
 
         # update actor
-        full_actions = [
-            self.actor_local(full_states[i]) if i == self.index
-            else agent.actor_local(full_states[i])
-            for i, agent in enumerate(agents)
-        ]
+        actions = self.actor_local(states)
+        actor_rewards = -self.critic_local(states, states_opponent, actions, actions_opponent).mean()
+
+        self.actor_optimizer.zero_grad()
+        actor_rewards.backward()
+        self.actor_optimizer.step()
 
         self.soft_update_target()
         
@@ -154,9 +147,8 @@ class DDPGAgent:
             self.critic_local.state_dict(),
             f"models/agent-{self.index}/{filename}_critic.pth",
         )
-<<<<<<< HEAD
 
-class MADDPGAgent:
+class MADDPGAgents:
     """Interacts with and learns from the environment."""
 
     def __init__(
@@ -189,10 +181,11 @@ class MADDPGAgent:
 
         """
         
-        action = sum([], action) # flatten
-
         for i, agent in enumerate(self.agents):
-            agent.memory.add(state[i], state, action, reward[i], next_state, next_state[i], done)
+            me = i
+            opp = 1 - i
+
+            agent.memory.add(state[me], state[opp], action[me], action[opp], reward[me], next_state[me], next_state[opp], done[me])
 
     def act(self, state):
         """
@@ -200,29 +193,22 @@ class MADDPGAgent:
         returns: [num_agents, action_per_agent]
         """
 
-        return [agent.act(s) for s, agent in zip(state, self.agents)]
+        actions = [agent.act(s, self.noise) for s, agent in zip(state, self.agents)]
+        self.noise *= self.noise_decay
+
+        return actions
+    def act_random(self):
+
+        return np.random.uniform(-1, 1, (self.num_agents, self.action_size))
 
     def reset(self):
         for agent in self.agents:
             agent.reset()
 
     def start_learn(self):
-        for agent in enumerate(self.agents):
-            agent.start_learn()
+        for i, agent in enumerate(self.agents):
+            agent.learn(self.agents[1 - i])
     
     def save(self, filename="checkpoint"):
         for agent in self.agents:
             agent.save(filename)
-=======
-    
-    def load(self, filename="checkpoint"):
-        actor = torch.load(f"models/agent-{self.index}/{filename}_actor.pth")
-        self.actor_local.load_state_dict(actor)
-        self.actor_target.load_state_dict(actor)
-
-        critic = torch.load(f"models/agent-{self.index}/{filename}_critic.pth")
-        self.critic_local.load_state_dict(critic)
-        self.critic_target.load_state_dict(critic)
-        
-        self.actor_opponent.load_state_dict(torch.load(f"models/agent-{self.index}/{filename}_actor_opponent.pth"))
->>>>>>> master

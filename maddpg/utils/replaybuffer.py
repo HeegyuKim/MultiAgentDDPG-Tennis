@@ -1,96 +1,41 @@
-import random
-import numpy as np
-import torch
 from collections import deque, namedtuple
+import random
+import torch
+import numpy as np
 
 
 class ReplayBuffer:
     """Fixed-size buffer to store experience tuples."""
 
-    def __init__(self, action_size, buffer_size, batch_size, seed, device):
-        """Initialize a ReplayBuffer object.
-        Params
-        ======
-            buffer_size (int): maximum size of buffer
-            batch_size (int): size of each training batch
-        """
-        self.device = device
-        self.action_size = action_size
+    def __init__(self, batch_size, buffer_size, seed, device):
+        """Initialize a ReplayBuffer object."""
+        
         self.memory = deque(maxlen=buffer_size)  # internal memory (deque)
         self.batch_size = batch_size
-        self.experience = namedtuple(
-            "Experience",
-            field_names=[
-                "state",
-                "full_state",
-                "action",
-                "reward",
-                "next_state",
-                "full_next_state",
-                "done",
-            ],
-        )
+        self.experience = namedtuple("Experience", field_names=["state", "state_opponent", "action", "action_opponent", "reward", "next_state", "next_state_opponent", "done"])
+        self.device = device
         random.seed(seed)
-
-    def add(self, state, full_state, action, reward, next_state, full_next_state, done):
+    
+    def add(self, state, state_opponent, action, action_opponent, reward, next_state, next_state_opponent, done):
         """Add a new experience to memory."""
-        e = self.experience(state, full_state, action, reward, next_state, full_next_state, done)
+        e = self.experience(state, state_opponent, action, action_opponent, reward, next_state, next_state_opponent, done)
         self.memory.append(e)
-
+    
     def sample(self):
         """Randomly sample a batch of experiences from memory."""
         experiences = random.sample(self.memory, k=self.batch_size)
 
-        states = (
-            torch.from_numpy(np.vstack([e.state for e in experiences if e is not None]))
-            .float()
-            .to(self.device)
-        )
-        full_state = (
-            torch.from_numpy(np.vstack([e.full_state for e in experiences if e is not None]))
-            .float()
-            .to(self.device)
-        )
-        actions = (
-            torch.from_numpy(
-                np.vstack([e.action for e in experiences if e is not None])
-            )
-            .float()
-            .to(self.device)
-        )
-        rewards = (
-            torch.from_numpy(
-                np.vstack([e.reward for e in experiences if e is not None])
-            )
-            .float()
-            .to(self.device)
-        )
-        next_states = (
-            torch.from_numpy(
-                np.vstack([e.next_state for e in experiences if e is not None])
-            )
-            .float()
-            .to(self.device)
-        )
-        full_next_state = (
-            torch.from_numpy(
-                np.vstack([e.full_next_state for e in experiences if e is not None])
-            )
-            .float()
-            .to(self.device)
-        )
-        dones = (
-            torch.from_numpy(
-                np.vstack([e.done for e in experiences if e is not None]).astype(
-                    np.uint8
-                )
-            )
-            .float()
-            .to(self.device)
-        )
+        states = torch.from_numpy(np.vstack([e.state for e in experiences if e is not None])).float().to(self.device)
+        states_opponent = torch.from_numpy(np.vstack([e.state_opponent for e in experiences if e is not None])).float().to(self.device)
+        actions = torch.from_numpy(np.vstack([e.action for e in experiences if e is not None])).float().to(self.device)
+        actions_opponent = torch.from_numpy(np.vstack([e.action_opponent for e in experiences if e is not None])).float().to(self.device)
+        rewards = torch.from_numpy(np.vstack([e.reward for e in experiences if e is not None])).float().to(self.device)
+        next_states = torch.from_numpy(np.vstack([e.next_state for e in experiences if e is not None])).float().to(self.device)
+        next_states_opponent = torch.from_numpy(np.vstack([e.next_state_opponent for e in experiences if e is not None])).float().to(self.device)
+        dones = torch.from_numpy(np.vstack([e.done for e in experiences if e is not None]).astype(np.uint8)).float().to(self.device)
 
-        return (states, full_state, actions, rewards, next_states, full_next_state, dones)
+        return (states, states_opponent, actions, actions_opponent, rewards, next_states, next_states_opponent, dones)
 
-    def __len__(self):
+    def ready(self):
         """Return the current size of internal memory."""
-        return len(self.memory)
+        return len(self.memory) >= self.batch_size

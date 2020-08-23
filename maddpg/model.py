@@ -50,9 +50,9 @@ class Critic(nn.Module):
         self.fc2.weight.data.uniform_(*hidden_init(self.fc2))
         self.fc3.weight.data.uniform_(-3e-3, 3e-3)
 
-    def forward(self, state, action):
+    def forward(self, state, state_opponent, action, action_opponent):
         """Build a critic (value) network that maps (state, action) pairs -> Q-values."""
-        x = torch.cat((state, action), dim=1)
+        x = torch.cat((state, state_opponent, action, action_opponent), dim=1)
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         return self.fc3(x)

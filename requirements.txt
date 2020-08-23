@@ -2,6 +2,7 @@ unityagents
 torch
 numpy
 matplotlib
+pandas
 
 pylint
 mypy
