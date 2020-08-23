@@ -64,7 +64,6 @@ class DDPGAgent:
             self.action_size, params['buffer_size'], params['batch_size'], random_seed, device
         )
 
-<<<<<<< HEAD
     def reset(self):
         self.noise.reset()
     
@@ -75,16 +74,6 @@ class DDPGAgent:
         """
         if state.dim() == 1:
             state = state.unsqueeze(0)
-=======
-        if load_checkpoint:
-            self.load()
-
-    def step(self, state, action, opponent_action, reward, next_state, done):
-        self.memory.add(state, action, opponent_action, reward, next_state, done)
-
-    def act(self, state, add_noise=True):
-        state = torch.from_numpy(state).float().unsqueeze(0).to(self.device)
->>>>>>> master
 
         self.actor_local.eval()
         with torch.no_grad():
