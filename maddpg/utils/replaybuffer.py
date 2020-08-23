@@ -22,18 +22,19 @@ class ReplayBuffer:
             "Experience",
             field_names=[
                 "state",
+                "full_state",
                 "action",
-                "opponent_action",
                 "reward",
                 "next_state",
+                "full_next_state",
                 "done",
             ],
         )
-        self.seed = random.seed(seed)
+        random.seed(seed)
 
-    def add(self, state, action, opponent_action, reward, next_state, done):
+    def add(self, state, full_state, action, reward, next_state, full_next_state, done):
         """Add a new experience to memory."""
-        e = self.experience(state, action, opponent_action, reward, next_state, done)
+        e = self.experience(state, full_state, action, reward, next_state, full_next_state, done)
         self.memory.append(e)
 
     def sample(self):
@@ -45,16 +46,14 @@ class ReplayBuffer:
             .float()
             .to(self.device)
         )
-        actions = (
-            torch.from_numpy(
-                np.vstack([e.action for e in experiences if e is not None])
-            )
+        full_state = (
+            torch.from_numpy(np.vstack([e.full_state for e in experiences if e is not None]))
             .float()
             .to(self.device)
         )
-        opponent_actions = (
+        actions = (
             torch.from_numpy(
-                np.vstack([e.opponent_action for e in experiences if e is not None])
+                np.vstack([e.action for e in experiences if e is not None])
             )
             .float()
             .to(self.device)
@@ -73,6 +72,13 @@ class ReplayBuffer:
             .float()
             .to(self.device)
         )
+        full_next_state = (
+            torch.from_numpy(
+                np.vstack([e.full_next_state for e in experiences if e is not None])
+            )
+            .float()
+            .to(self.device)
+        )
         dones = (
             torch.from_numpy(
                 np.vstack([e.done for e in experiences if e is not None]).astype(
@@ -83,7 +89,7 @@ class ReplayBuffer:
             .to(self.device)
         )
 
-        return (states, actions, opponent_actions, rewards, next_states, dones)
+        return (states, full_state, actions, rewards, next_states, full_next_state, dones)
 
     def __len__(self):
         """Return the current size of internal memory."""
