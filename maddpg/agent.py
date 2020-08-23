@@ -15,7 +15,17 @@ class DDPGAgent:
         index,
         random_seed,
         device,
+<<<<<<< HEAD
         params
+=======
+        actor_lr=1e-3,
+        critic_lr=1e-3,
+        buffer_size=10000,
+        batch_size=512,
+        gamma=0.99,
+        tau=1e-3,
+        load_checkpoint=False
+>>>>>>> master
     ):
         self.index = index
         self.state_size = params['state_size']
@@ -54,6 +64,7 @@ class DDPGAgent:
             self.action_size, params['buffer_size'], params['batch_size'], random_seed, device
         )
 
+<<<<<<< HEAD
     def reset(self):
         self.noise.reset()
     
@@ -64,6 +75,16 @@ class DDPGAgent:
         """
         if state.dim() == 1:
             state = state.unsqueeze(0)
+=======
+        if load_checkpoint:
+            self.load()
+
+    def step(self, state, action, opponent_action, reward, next_state, done):
+        self.memory.add(state, action, opponent_action, reward, next_state, done)
+
+    def act(self, state, add_noise=True):
+        state = torch.from_numpy(state).float().unsqueeze(0).to(self.device)
+>>>>>>> master
 
         self.actor_local.eval()
         with torch.no_grad():
@@ -144,6 +165,7 @@ class DDPGAgent:
             self.critic_local.state_dict(),
             f"models/agent-{self.index}/{filename}_critic.pth",
         )
+<<<<<<< HEAD
 
 class MADDPGAgent:
     """Interacts with and learns from the environment."""
@@ -202,3 +224,16 @@ class MADDPGAgent:
     def save(self, filename="checkpoint"):
         for agent in self.agents:
             agent.save(filename)
+=======
+    
+    def load(self, filename="checkpoint"):
+        actor = torch.load(f"models/agent-{self.index}/{filename}_actor.pth")
+        self.actor_local.load_state_dict(actor)
+        self.actor_target.load_state_dict(actor)
+
+        critic = torch.load(f"models/agent-{self.index}/{filename}_critic.pth")
+        self.critic_local.load_state_dict(critic)
+        self.critic_target.load_state_dict(critic)
+        
+        self.actor_opponent.load_state_dict(torch.load(f"models/agent-{self.index}/{filename}_actor_opponent.pth"))
+>>>>>>> master
