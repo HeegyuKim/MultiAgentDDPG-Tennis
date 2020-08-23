@@ -1,0 +1,10 @@
+unityagents
+torch
+numpy
+matplotlib
+
+pylint
+mypy
+pytest
+pytest-cov
+black 
