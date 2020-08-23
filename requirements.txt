@@ -5,7 +5,4 @@ matplotlib
 pandas
 
 pylint
-mypy
-pytest
-pytest-cov
 black 
